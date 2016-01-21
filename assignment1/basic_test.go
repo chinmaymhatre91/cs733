@@ -15,7 +15,7 @@ func TestTCPSimple(t *testing.T) {
 	go serverMain()
 	time.Sleep(1 * time.Second) // one second is enough time for the server to start
 	name := "hi.txt"
-	contents := "bye"
+	contents := "byehgrgh\nrgh"
 	exptime := 300000
 	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
