@@ -164,7 +164,6 @@ func handleDataAccess(my_map map[string]my_file, ch chan my_task) {
 
 func handleConnection(conn net.Conn, ch chan my_task) {
 	for {
-
 		new_conn := bufio.NewReader(conn)
 		message, err := new_conn.ReadString('\n')
 		if err == io.EOF || err != nil {
