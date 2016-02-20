@@ -300,8 +300,8 @@ func processLeaderEvent(sm *StateMachine, ev Event) []Action {
 
 				for i := sm.matchIndex[sm.getPeerIndex(evnt.senderId)]; i > sm.commitIndex; i-- {
 					cnt := 1
-					for _, peerId := range sm.peers {
-						if sm.matchIndex[peerId] >= i {
+					for j, _ := range sm.peers {
+						if sm.matchIndex[j] >= i {
 							cnt++
 						}
 					}
@@ -613,6 +613,7 @@ func processCandidateEvent(sm *StateMachine, ev Event) []Action {
 	case AppendEntriesRespEvent:
 		evnt := ev.(AppendEntriesRespEvent)
 		if evnt.term > sm.currentTerm {
+			// Don't know whether this case will occur or not.....when it will occur???.....what to do????
 			sm.state = "Follower"
 			sm.currentTerm = evnt.term
 			sm.votedFor = -1
