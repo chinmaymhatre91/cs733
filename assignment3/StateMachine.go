@@ -39,7 +39,7 @@ func min(val1 int, val2 int) int {
 }
 
 // -------------------- configuration structures --------------------
-
+/*
 type NetConfig struct {
 	Id   int
 	Host string
@@ -54,7 +54,7 @@ type Config struct {
 	ElectionTimeout  int
 	HeartbeatTimeout int
 }
-
+*/
 // -------------------- event structures --------------------
 
 type Event interface{}

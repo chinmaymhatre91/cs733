@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	//"fmt"
 	//"strconv"
 	//"github.com/cs733-iitb/log"
 	//"time"
@@ -27,6 +27,7 @@ type big_struct struct {
 	str string
 }
 
+/*
 func main() {
 	// var t *time.Timer
 	// t = time.NewTimer(0)
@@ -80,3 +81,4 @@ func main() {
 	fmt.Println(yy.arr[1].b)
 
 }
+*/

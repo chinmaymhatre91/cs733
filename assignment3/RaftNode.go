@@ -1,13 +1,14 @@
 package main
 
 import (
-	"errors"
 	//"fmt"
+	"encoding/gob"
+	"errors"
 	"github.com/cs733-iitb/cluster"
 	"github.com/cs733-iitb/log"
-	//"math/rand"
 	"strconv"
 	"time"
+	//"math/rand"
 	//"bufio"
 	//"io"
 	//"math"
@@ -151,15 +152,15 @@ func makeRafts() []Node {
 	var nodes []Node
 
 	clust := []NetConfig{
-		{Id: 101, Host: "127.0.0.1", Port: 8001},
-		{Id: 102, Host: "127.0.0.1", Port: 8002},
-		{Id: 103, Host: "127.0.0.1", Port: 8003},
-		{Id: 104, Host: "127.0.0.1", Port: 8004},
-		{Id: 105, Host: "127.0.0.1", Port: 8005}}
-	file_dir := "file"
+		{Id: 101, Host: "127.0.0.1", Port: 9001},
+		{Id: 102, Host: "127.0.0.1", Port: 9002},
+		{Id: 103, Host: "127.0.0.1", Port: 9003},
+		{Id: 104, Host: "127.0.0.1", Port: 9004},
+		{Id: 105, Host: "127.0.0.1", Port: 9005}}
+	file_dir := "node"
 
 	for i := 0; i < 5; i++ {
-		conf := Config{Cluster: clust, Id: clust[i].Id, LogFileDir: file_dir + "_log_" + strconv.Itoa(clust[i].Id), StateFileDir: file_dir + "_state_" + strconv.Itoa(clust[i].Id), ElectionTimeout: 800, HeartbeatTimeout: 100}
+		conf := Config{Cluster: clust, Id: clust[i].Id, LogFileDir: file_dir + strconv.Itoa(clust[i].Id) + "/log", StateFileDir: file_dir + strconv.Itoa(clust[i].Id) + "/state", ElectionTimeout: 800, HeartbeatTimeout: 100}
 		raft_node := New(conf)
 		nodes = append(nodes, raft_node)
 	}
@@ -168,9 +169,17 @@ func makeRafts() []Node {
 }
 
 func getLeader(nodes []Node) (Node, error) {
+	var id, leader_id int
+	var err error
 	for _, rn := range nodes {
-		id, _ := rn.Id()
-		leader_id, _ := rn.LeaderId()
+		id, err = rn.Id()
+		if err != nil {
+			continue
+		}
+		leader_id, err = rn.LeaderId()
+		if err != nil {
+			continue
+		}
 		if id == leader_id {
 			return rn, nil
 		}
@@ -188,6 +197,15 @@ func GetClusterConfig(conf Config) cluster.Config {
 	return cluster.Config{Peers: peer_config, InboxSize: 1000, OutboxSize: 1000}
 }
 
+func RegisterStructs() {
+	gob.Register(LogEntry{})
+	gob.Register(StateEntry{})
+	gob.Register(AppendEntriesReqEvent{})
+	gob.Register(AppendEntriesRespEvent{})
+	gob.Register(VoteReqEvent{})
+	gob.Register(VoteRespEvent{})
+}
+
 func New(conf Config) Node {
 	var rn RaftNode
 
@@ -198,6 +216,7 @@ func New(conf Config) Node {
 	rn.AppendEventCh = make(chan Event)
 	rn.TimeoutEventCh = make(chan Event)
 	rn.CommitCh = make(chan CommitInfo)
+	RegisterStructs()
 	ClustConfig := GetClusterConfig(conf)               // ?????
 	rn.NetServer, _ = cluster.New(conf.Id, ClustConfig) // ?????
 	rn.LogFile, _ = log.Open(conf.LogFileDir)
@@ -244,18 +263,23 @@ func New(conf Config) Node {
 	go rn.ProcessTimers()
 	go rn.ProcessNodeEvents()
 
+	rn.TimeoutTimer.Reset(time.Millisecond * time.Duration(conf.ElectionTimeout))
+
 	return &rn
 }
 
 func (RN *RaftNode) ProcessTimers() {
 	for RN.IsWorking {
-		<-RN.TimeoutTimer.C
-		RN.TimeoutEventCh <- TimeoutEvent{}
+		select {
+		case <-RN.TimeoutTimer.C:
+			RN.TimeoutEventCh <- TimeoutEvent{}
+		default:
+		}
 	}
 }
 
 func (RN *RaftNode) ProcessActions(actions []Action) {
-	for i, act := range actions {
+	for _, act := range actions {
 		switch act.(type) {
 
 		case SendAction:
@@ -291,16 +315,23 @@ func (RN *RaftNode) ProcessNodeEvents() {
 		select {
 		case ev = <-RN.AppendEventCh:
 			// Append Event
+			actions := RN.SM.ProcessEvent(ev)
+			RN.ProcessActions(actions)
 
 		case ev = <-RN.TimeoutEventCh:
 			// Timeout Event
+			actions := RN.SM.ProcessEvent(ev)
+			RN.ProcessActions(actions)
 
 		case inboxEvent := <-RN.NetServer.Inbox():
 			// Network Event
 			ev = inboxEvent.Msg
+			actions := RN.SM.ProcessEvent(ev)
+			RN.ProcessActions(actions)
+		default:
 		}
 
-		actions := RN.SM.ProcessEvent(ev)
-		RN.ProcessActions(actions)
+		//actions := RN.SM.ProcessEvent(ev)
+		//RN.ProcessActions(actions)
 	}
 }
