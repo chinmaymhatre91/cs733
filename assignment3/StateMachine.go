@@ -185,7 +185,7 @@ func (SM *StateMachine) getPeerIndex(serverId int) int {
 
 // -------------------- process event while in leader state --------------------
 
-func (SM *StateMachine) processLeaderEvent(ev Event) []Action {
+func (SM *StateMachine) ProcessLeaderEvent(ev Event) []Action {
 	var act []Action
 
 	switch ev.(type) {
@@ -386,7 +386,7 @@ func (SM *StateMachine) processLeaderEvent(ev Event) []Action {
 
 // -------------------- process event while in follower state --------------------
 
-func (SM *StateMachine) processFollowerEvent(ev Event) []Action {
+func (SM *StateMachine) ProcessFollowerEvent(ev Event) []Action {
 	var act []Action
 
 	switch ev.(type) {
@@ -560,7 +560,7 @@ func (SM *StateMachine) processFollowerEvent(ev Event) []Action {
 
 // -------------------- process event while in candidate state --------------------
 
-func (SM *StateMachine) processCandidateEvent(ev Event) []Action {
+func (SM *StateMachine) ProcessCandidateEvent(ev Event) []Action {
 	var act []Action
 
 	switch ev.(type) {
@@ -766,7 +766,7 @@ func (SM *StateMachine) processCandidateEvent(ev Event) []Action {
 
 // -------------------- processEvent function --------------------
 
-func (SM *StateMachine) processEvent(ev Event) []Action {
+func (SM *StateMachine) ProcessEvent(ev Event) []Action {
 	//fmt.Println("In Process Event")
 	var act []Action
 
@@ -775,11 +775,11 @@ func (SM *StateMachine) processEvent(ev Event) []Action {
 
 	switch SM.State {
 	case "Leader":
-		act = SM.processLeaderEvent(ev)
+		act = SM.ProcessLeaderEvent(ev)
 	case "Follower":
-		act = SM.processFollowerEvent(ev)
+		act = SM.ProcessFollowerEvent(ev)
 	case "Candidate":
-		act = SM.processCandidateEvent(ev)
+		act = SM.ProcessCandidateEvent(ev)
 	}
 
 	return act

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	//"strconv"
 	//"github.com/cs733-iitb/log"
 	//"time"
 )
@@ -9,6 +11,20 @@ import (
 type abc struct {
 	a int
 	b string
+}
+
+func temp() (abc, error) {
+	var t abc
+	t.a = 100
+	t.b = "100"
+
+	return t, errors.New("errrrr")
+}
+
+type big_struct struct {
+	arr []abc
+	id  int
+	str string
 }
 
 func main() {
@@ -31,12 +47,36 @@ func main() {
 
 	//t.Stop()
 
-	var aa []abc
+	//var ax []abc
 
-	t := abc{}
+	zz, err := temp()
+	if err == nil {
+		fmt.Println("Error Nil")
+	}
+	fmt.Println(err)
 
-	aa = Append(aa, t)
+	fmt.Println(zz.a)
+	fmt.Println(zz.b)
 
-	fmt.Println(aa[0].a)
+	var ch chan int
+
+	ch = make(chan int)
+
+	ch = nil
+
+	ch = make(chan int)
+
+	go func() {
+		ch <- 10
+	}()
+
+	fmt.Println(<-ch)
+
+	var xx, yy big_struct
+
+	xx = big_struct{arr: []abc{{a: 10, b: "10"}, {a: 11, b: "11"}}, id: 1, str: "1111"}
+	yy = xx
+
+	fmt.Println(yy.arr[1].b)
 
 }
