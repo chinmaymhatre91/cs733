@@ -187,14 +187,11 @@ func New(conf Config) Node {
 	//rn.TimeoutEventCh = make(chan Event, 100)
 	rn.CommitCh = make(chan CommitInfo, 100)
 	RegisterStructs()
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.1")
 	ClustConfig := GetClusterConfig(conf)               // ?????
 	rn.NetServer, _ = cluster.New(conf.Id, ClustConfig) // ?????
 	rn.LogFile, _ = log.Open(conf.LogFileDir)
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.2")
 	rn.StateFile, _ = log.Open(conf.StateFileDir)
 
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.2")
 	// initilisation of state machine
 	rn.SM.Id = conf.Id
 	rn.SM.Conf = conf
@@ -202,34 +199,35 @@ func New(conf Config) Node {
 	rn.SM.NumOfVotes = 0
 	rn.SM.NumOfNegVotes = 0
 	rn.SM.LeaderId = -1
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.3")
-	// if rn.StateFile.GetLastIndex() != -1 {
-	// 	entry, err := rn.StateFile.Get(0)
-	// 	state_entry := entry.(StateEntry)
+	
+	if rn.StateFile.GetLastIndex() != -1 {
+		entry, _ := rn.StateFile.Get(0)
+		state_entry := entry.(StateEntry)
 
-	// 	rn.SM.CurrentTerm = state_entry.Term
-	// 	rn.SM.VotedFor = state_entry.VotedFor
-	// 	rn.SM.CurrTermLastLogIndex = state_entry.CurrTermLastLogIndex
-	// } else {
-	rn.StateFile.TruncateToEnd(0)
-	rn.SM.CurrentTerm = 0
-	rn.SM.VotedFor = -1
-	rn.SM.CurrTermLastLogIndex = -1
-	rn.StateFile.Append(StateEntry{Term: 0, VotedFor: -1, CurrTermLastLogIndex: -1})
-	//}
-	// if rn.StateFile.GetLastIndex() != -1 {
-	// 	last_index := rn.StateFile.GetLastIndex()
-	// 	for i := 0; i <= last_index; i++ {
-	// 		entry, err := rn.LogFile.Get(i)
-	// 		log_entry := entry.(LogEntry)
-	// 		rn.SM.Log = append(rn.SM.Log, log_entry)
-	// 	}
-	// } else {
-	rn.LogFile.TruncateToEnd(0)
-	rn.SM.Log = append(rn.SM.Log, LogEntry{Term: 0, Data: nil})
-	rn.LogFile.Append(LogEntry{Term: 0, Data: nil})
-	//}
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.4")
+		rn.SM.CurrentTerm = state_entry.Term
+		rn.SM.VotedFor = state_entry.VotedFor
+		rn.SM.CurrTermLastLogIndex = state_entry.CurrTermLastLogIndex
+	} else {
+		rn.StateFile.TruncateToEnd(0)
+		rn.SM.CurrentTerm = 0
+		rn.SM.VotedFor = -1
+		rn.SM.CurrTermLastLogIndex = -1
+		rn.StateFile.Append(StateEntry{Term: 0, VotedFor: -1, CurrTermLastLogIndex: -1})
+	}
+
+	if rn.LogFile.GetLastIndex() != -1 {
+		last_index := rn.LogFile.GetLastIndex()
+		for i := 0; i <= int(last_index); i++ {
+			entry, _ := rn.LogFile.Get(int64(i))
+			log_entry := entry.(LogEntry)
+			rn.SM.Log = append(rn.SM.Log, log_entry)
+		}
+	} else {
+		rn.LogFile.TruncateToEnd(0)
+		rn.SM.Log = append(rn.SM.Log, LogEntry{Term: 0, Data: nil})
+		rn.LogFile.Append(LogEntry{Term: 0, Data: nil})
+	}
+	
 	rn.SM.CommitIndex = 0
 	rn.SM.LastApplied = 0
 	for _, _ = range conf.Cluster {
@@ -237,13 +235,10 @@ func New(conf Config) Node {
 		rn.SM.MatchIndex = append(rn.SM.MatchIndex, 0)
 	}
 
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.5")
 	//go rn.ProcessTimers()
 	go rn.ProcessNodeEvents()
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.6")
 
 	rn.TimeoutTimer.Reset(time.Millisecond * time.Duration(conf.ElectionTimeout))
-	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.7")
 
 	return &rn
 }

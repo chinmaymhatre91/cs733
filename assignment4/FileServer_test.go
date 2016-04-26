@@ -120,8 +120,7 @@ func expect(t *testing.T, response *Msg, expected *Msg, errstr string, err error
 	}
 }
 
-
-/*
+///*
 func TestBasic(t *testing.T) {
 	beginTest()
 	startCluster(0)
@@ -143,9 +142,9 @@ func TestBasic(t *testing.T) {
 	endTest()
 	fmt.Println("Test End - TestBasic")
 }
-*/
+//*/
 
-/*
+///*
 func TestRPC_BasicSequential(t *testing.T) {
 	beginTest()
 	startCluster(0)
@@ -203,9 +202,9 @@ func TestRPC_BasicSequential(t *testing.T) {
 	endTest()
 	fmt.Println("Test End - TestRPC_BasicSequential")
 }
-*/
+//*/
 
-/*
+///*
 func TestRPC_Binary(t *testing.T) {
 	beginTest()
 	startCluster(0)
@@ -228,9 +227,9 @@ func TestRPC_Binary(t *testing.T) {
 	endTest()
 	fmt.Println("Test End - TestRPC_Binary")
 }
-*/
+//*/
 
-/*
+///*
 func TestRPC_Chunks(t *testing.T) {
 	beginTest()
 	startCluster(0)
@@ -276,9 +275,9 @@ func TestRPC_Chunks(t *testing.T) {
 	endTest()
 	fmt.Println("Test End - TestRPC_Chunks")
 }
-*/
+//*/
 
-/*
+///*
 func TestRPC_BasicTimer(t *testing.T) {
 	beginTest()
 	startCluster(0)
@@ -342,7 +341,72 @@ func TestRPC_BasicTimer(t *testing.T) {
 	endTest()
 	fmt.Println("Test End - TestRPC_BasicTimer")
 }
-*/
+//*/
+
+func getServerId(cl *Client) (int) {
+	fields := strings.Split(cl.addr, ":")
+	port, err := strconv.Atoi(fields[1])
+	if err != nil {
+		panic("[Error] Converting string integer while getting Id")
+	}
+	id := 100 + (port - 9000)
+	return id
+}
+
+///*
+func TestLeaderFailure(t *testing.T) {
+	beginTest()
+	startCluster(0)
+
+	time.Sleep(time.Second*5)
+
+	cl := mkClient(t, "127.0.0.1:9001")
+	defer cl.close()
+
+	m, err := cl.read("cs733net")
+	expect(t, m, &Msg{Kind: 'F'}, "file not found", err)
+
+	txt := "foo1"
+	m, err = cl.write("cs733net", txt, 0)
+	expect(t, m, &Msg{Kind: 'O'}, "write success", err)
+
+	ldr_id := getServerId(cl)
+
+	killServer(ldr_id)
+
+	time.Sleep(time.Second * 5)
+
+	new_ldr_id := ldr_id + 1
+	if new_ldr_id > 105 {
+		new_ldr_id = 101
+	}
+	new_ldr_port := 9000 + (new_ldr_id-100)
+
+	cl = mkClient(t, "127.0.0.1:"+strconv.Itoa(new_ldr_port))
+
+	txt = "foo2"
+	m, err = cl.write("cs733net", txt, 0)
+	expect(t, m, &Msg{Kind: 'O'}, "write success", err)
+
+	startServer(ldr_id, 0)
+
+	time.Sleep(time.Second * 5)
+
+	cl = mkClient(t, "127.0.0.1:"+strconv.Itoa(9000 + (ldr_id-100)))
+
+	m, err = cl.read("cs733net")
+	if err != nil {
+		t.Fatal("Unexpected error " + err.Error())
+	}
+	if !(string(m.Contents[:]) == txt && m.Version == 2) {
+		t.Fatal("Expected msg with contents - foo2 with version 2. Received - " + string(m.Contents[:]) + strconv.Itoa(m.Version))
+	}
+
+	killCluster()
+	endTest()
+	fmt.Println("Test End - TestLeaderFailure")
+}
+//*/
 
 // nclients write to the same file. At the end the file should be
 // any one clients' last write
@@ -528,6 +592,7 @@ func (cl *Client) checkResp(msg *Msg) (res string, err error) {
 		cl.conn, err = mkConn(msg.ReDirAddr)
 		if err == nil {
 			cl.reader = bufio.NewReader(cl.conn)
+			cl.addr = msg.ReDirAddr
 		}
 
 		return "R_KIND_MSG", err
@@ -594,6 +659,7 @@ var errNoConn = errors.New("Connection is closed")
 type Client struct {
 	conn   *net.TCPConn
 	reader *bufio.Reader // a bufio Reader wrapper over conn
+	addr   string
 }
 
 func mkClient(t *testing.T, Addr string) *Client {
@@ -602,7 +668,7 @@ func mkClient(t *testing.T, Addr string) *Client {
 	if err == nil {
 		conn, err := net.DialTCP("tcp", nil, raddr)
 		if err == nil {
-			client = &Client{conn: conn, reader: bufio.NewReader(conn)}
+			client = &Client{conn: conn, reader: bufio.NewReader(conn), addr: Addr}
 		}
 	}
 	if err != nil {

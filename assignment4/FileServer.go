@@ -123,21 +123,14 @@ func getClientPort(server_id int) (int) {
 func NewFileServer(server_id int, clust_no int) (FileServer) {
 	var FSR FileServer
 
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.1")
 	FSR.Id = server_id
 	conf := getConfig(server_id, clust_no)
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.2")
 	//fmt.Println(conf)
-	fmt.Println(conf)
 	FSR.RN = New(conf)
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.3")
 	FSR.Host = getHost(server_id)
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.4")
 	FSR.ClientPort = getClientPort(server_id)
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.5")
 	FSR.ConnMap = make(map[int]*net.TCPConn)
 
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.6")
 	return FSR
 }
 
@@ -236,7 +229,7 @@ func (FSR *FileServer) serve(clientId int, conn *net.TCPConn) {
 			}
 		}
 
-		fmt.Println("["+strconv.Itoa(FSR.Id)+"] - Msg Kind ", string(msg.Kind))
+		//fmt.Println("["+strconv.Itoa(FSR.Id)+"] - Msg Kind ", string(msg.Kind))
 		if msg.Kind == 'r' {
 			response := fs.ProcessMsg(msg)
 			if !reply(conn, response) {
@@ -342,7 +335,6 @@ func main() {
 		fmt.Println(os.Args)
 		panic("[Error] Wrong number of arguments")
 	}
-	//fmt.Println(os.Args[1])
 	
 	server_id, err := strconv.Atoi(os.Args[1])
 	if err != nil {
@@ -351,13 +343,11 @@ func main() {
 	clust_no, err := strconv.Atoi(os.Args[2])
 	if err != nil {
 		panic("[Error] Non-nummeric cluster no")
-	}
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 2")  
+	} 
 
 	FSR := NewFileServer(server_id, clust_no)
-	//fmt.Println("["+strconv.Itoa(server_id)+"] 3")
 	go FSR.serverFile()
-	fmt.Println("looks good")
+	fmt.Println(server_id, " Looks good")
 	FSR.serverMain()
 
 }
