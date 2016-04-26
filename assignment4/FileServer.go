@@ -19,17 +19,19 @@ type FileServerConfig struct {
 	Host string
 	RaftPort int
 	ClientPort int
+	ElectionTimeout int
+	HeartbeatTimeout int
 }
 
 var ELECTION_TIMEOUT int = 800
 var HEARTBEAT_TIMEOUT int = 400
 
 var my_file_clust = []FileServerConfig{
-	{Id: 101, Host: "127.0.0.1", RaftPort: 8001, ClientPort: 9001},
-	{Id: 102, Host: "127.0.0.1", RaftPort: 8002, ClientPort: 9002},
-	{Id: 103, Host: "127.0.0.1", RaftPort: 8003, ClientPort: 9003},
-	{Id: 104, Host: "127.0.0.1", RaftPort: 8004, ClientPort: 9004},
-	{Id: 105, Host: "127.0.0.1", RaftPort: 8005, ClientPort: 9005}}
+	{Id: 101, Host: "127.0.0.1", RaftPort: 8001, ClientPort: 9001, ElectionTimeout: ELECTION_TIMEOUT, HeartbeatTimeout: HEARTBEAT_TIMEOUT},
+	{Id: 102, Host: "127.0.0.1", RaftPort: 8002, ClientPort: 9002, ElectionTimeout: ELECTION_TIMEOUT, HeartbeatTimeout: HEARTBEAT_TIMEOUT},
+	{Id: 103, Host: "127.0.0.1", RaftPort: 8003, ClientPort: 9003, ElectionTimeout: ELECTION_TIMEOUT, HeartbeatTimeout: HEARTBEAT_TIMEOUT},
+	{Id: 104, Host: "127.0.0.1", RaftPort: 8004, ClientPort: 9004, ElectionTimeout: ELECTION_TIMEOUT, HeartbeatTimeout: HEARTBEAT_TIMEOUT},
+	{Id: 105, Host: "127.0.0.1", RaftPort: 8005, ClientPort: 9005, ElectionTimeout: ELECTION_TIMEOUT, HeartbeatTimeout: HEARTBEAT_TIMEOUT}}
 
 func check(obj interface{}) {
 	if obj != nil {
@@ -47,6 +49,19 @@ type FileServer struct {
 	ConnMap map[int]*net.TCPConn
 }
 
+func getFileServerIndex(server_id int) (int) {
+	var Index int 
+
+	for i, entry := range my_file_clust {
+		if entry.Id == server_id {
+			Index = i
+			break 
+		}
+	}
+
+	return Index
+}
+
 func getCluster() ([]NetConfig) {
 	var clust []NetConfig 
 
@@ -57,7 +72,7 @@ func getCluster() ([]NetConfig) {
 	return clust
 }
 
-func getConfig(server_id int) (Config) {
+func getConfig(server_id int, clust_no int) (Config) {
 	var conf Config
 	file_dir := "node"
 
@@ -66,16 +81,20 @@ func getConfig(server_id int) (Config) {
 			conf.Id = server_id
 			conf.Cluster = getCluster()
 			conf.LogFileDir = file_dir + strconv.Itoa(server_id) + "/log"
-			conf.StateFileDir = file_dir + strconv.Itoa(server_id) + "/state"
-			conf.ElectionTimeout = ELECTION_TIMEOUT
-			conf.HeartbeatTimeout = HEARTBEAT_TIMEOUT
+			conf.StateFileDir = file_dir + strconv.Itoa(server_id) + "/state"			
+			conf.ElectionTimeout = my_file_clust[getFileServerIndex(server_id)].ElectionTimeout
+			conf.HeartbeatTimeout = my_file_clust[getFileServerIndex(server_id)].HeartbeatTimeout
+			if clust_no == 1 && entry.Id != 101 {
+				conf.ElectionTimeout = conf.ElectionTimeout * 10
+				conf.HeartbeatTimeout = conf.HeartbeatTimeout * 10
+			}
 		}
 	}
 
 	return conf
 }
 
-func getHost(server_id int) string {
+func getHost(server_id int) (string) {
 	var Host string 
 
 	for _, entry := range my_file_clust {
@@ -88,7 +107,7 @@ func getHost(server_id int) string {
 	return Host
 }
 
-func getClientPort(server_id int) int {
+func getClientPort(server_id int) (int) {
 	var ClientPort int 
 
 	for _, entry := range my_file_clust {
@@ -101,14 +120,15 @@ func getClientPort(server_id int) int {
 	return ClientPort
 }
 
-func NewFileServer(server_id int) (FileServer) {
+func NewFileServer(server_id int, clust_no int) (FileServer) {
 	var FSR FileServer
 
 	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.1")
 	FSR.Id = server_id
-	conf := getConfig(server_id)
+	conf := getConfig(server_id, clust_no)
 	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.2")
 	//fmt.Println(conf)
+	fmt.Println(conf)
 	FSR.RN = New(conf)
 	//fmt.Println("["+strconv.Itoa(server_id)+"] 2.3")
 	FSR.Host = getHost(server_id)
@@ -318,19 +338,23 @@ func (FSR *FileServer) serverMain() {
 }
 
 func main() {
-	if len(os.Args) != 2 {
+	if len(os.Args) != 3 {
 		fmt.Println(os.Args)
 		panic("[Error] Wrong number of arguments")
 	}
-	fmt.Println(os.Args[1])
+	//fmt.Println(os.Args[1])
 	
 	server_id, err := strconv.Atoi(os.Args[1])
 	if err != nil {
 		panic("[Error] Non-nummeric server id")
 	}
+	clust_no, err := strconv.Atoi(os.Args[2])
+	if err != nil {
+		panic("[Error] Non-nummeric cluster no")
+	}
 	//fmt.Println("["+strconv.Itoa(server_id)+"] 2")  
 
-	FSR := NewFileServer(server_id)
+	FSR := NewFileServer(server_id, clust_no)
 	//fmt.Println("["+strconv.Itoa(server_id)+"] 3")
 	go FSR.serverFile()
 	fmt.Println("looks good")

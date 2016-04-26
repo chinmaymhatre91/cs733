@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+	"sync"
 )
 
 /*func TestRPCMain(t *testing.T) {
@@ -57,14 +58,14 @@ func endTest() {
 	}
 }
 
-func startServer(server_id int) {
-	err := execCommandBg("./assignment4 "+strconv.Itoa(server_id))
+func startServer(server_id int, clust_no int) {
+	err := execCommandBg("./assignment4 "+ strconv.Itoa(server_id) + " " + strconv.Itoa(clust_no))
 	if err != nil {
 		panic("[Error] while starting server - "+strconv.Itoa(server_id)+" - "+err.Error())
 	}	
 }
 
-func startCluster() {
+func startCluster(clust_no int) {
 	/*for _, entry := range my_file_clust {
 		//fmt.Println("Starting - ",entry.Id)
 		startServer(entry.Id)
@@ -72,7 +73,7 @@ func startCluster() {
 
 	procs := make(map[int]*exec.Cmd)
 	for i, entry := range my_file_clust {
-		procs[i] = exec.Command("sh", "-c", "./assignment4 " + strconv.Itoa(entry.Id))
+		procs[i] = exec.Command("sh", "-c", "./assignment4 "+ strconv.Itoa(entry.Id) + " " + strconv.Itoa(clust_no))
 		procs[i].Stdout = os.Stdout
 		procs[i].Stderr = os.Stderr
 		err := procs[i].Start()
@@ -120,11 +121,11 @@ func expect(t *testing.T, response *Msg, expected *Msg, errstr string, err error
 }
 
 
-///*
+/*
 func TestBasic(t *testing.T) {
 	beginTest()
-	startCluster()
-	fmt.Println("Cluster Started")
+	startCluster(0)
+
 	time.Sleep(time.Second*5)
 
 	cl := mkClient(t, "127.0.0.1:9001")
@@ -140,14 +141,14 @@ func TestBasic(t *testing.T) {
 
 	killCluster()
 	endTest()
-	fmt.Println("Test End")
+	fmt.Println("Test End - TestBasic")
 }
-//*/
+*/
 
-///*
+/*
 func TestRPC_BasicSequential(t *testing.T) {
 	beginTest()
-	startCluster()
+	startCluster(0)
 
 	time.Sleep(time.Second*5)
 
@@ -200,13 +201,18 @@ func TestRPC_BasicSequential(t *testing.T) {
 
 	killCluster()
 	endTest()
-	fmt.Println("Test End")
+	fmt.Println("Test End - TestRPC_BasicSequential")
 }
-//*/
+*/
 
 /*
 func TestRPC_Binary(t *testing.T) {
-	cl := mkClient(t)
+	beginTest()
+	startCluster(0)
+
+	time.Sleep(time.Second*5)
+
+	cl := mkClient(t, "127.0.0.1:9001")
 	defer cl.close()
 
 	// Write binary contents
@@ -218,14 +224,22 @@ func TestRPC_Binary(t *testing.T) {
 	m, err = cl.read("binfile")
 	expect(t, m, &Msg{Kind: 'C', Contents: []byte(data)}, "read my write", err)
 
+	killCluster()
+	endTest()
+	fmt.Println("Test End - TestRPC_Binary")
 }
 */
 
 /*
 func TestRPC_Chunks(t *testing.T) {
-	// Should be able to accept a few bytes at a time
-	cl := mkClient(t)
+	beginTest()
+	startCluster(0)
+
+	time.Sleep(time.Second*5)
+
+	cl := mkClient(t, "127.0.0.1:9001")
 	defer cl.close()
+
 	var err error
 	snd := func(chunk string) {
 		if err == nil {
@@ -233,45 +247,45 @@ func TestRPC_Chunks(t *testing.T) {
 		}
 	}
 
-	// Send the command "write teststream 10\r\nabcdefghij\r\n" in multiple chunks
-	// Nagle's algorithm is disabled on a write, so the server should get these in separate TCP packets.
-	snd("wr")
-	time.Sleep(10 * time.Millisecond)
-	snd("ite test")
-	time.Sleep(10 * time.Millisecond)
-	snd("stream 1")
-	time.Sleep(10 * time.Millisecond)
-	snd("0\r\nabcdefghij\r")
-	time.Sleep(10 * time.Millisecond)
-	snd("\n")
 	var m *Msg
-	m, err = cl.rcv()
+
+	for {
+		// Send the command "write teststream 10\r\nabcdefghij\r\n" in multiple chunks
+		// Nagle's algorithm is disabled on a write, so the server should get these in separate TCP packets.
+		snd("wr")
+		time.Sleep(10 * time.Millisecond)
+		snd("ite test")
+		time.Sleep(10 * time.Millisecond)
+		snd("stream 1")
+		time.Sleep(10 * time.Millisecond)
+		snd("0\r\nabcdefghij\r")
+		time.Sleep(10 * time.Millisecond)
+		snd("\n")
+		m, err = cl.rcv()
+		if err == nil {
+			res, err := cl.checkResp(m)
+			if (res == "T_KIND_MSG" || res == "R_KIND_MSG" ) && (err == nil) {
+				continue
+			}
+			break
+		}
+	}
 	expect(t, m, &Msg{Kind: 'O'}, "writing in chunks should work", err)
-}
-*/
 
-/*
-func TestRPC_Batch(t *testing.T) {
-	// Send multiple commands in one batch, expect multiple responses
-	cl := mkClient(t)
-	defer cl.close()
-	cmds := "write batch1 3\r\nabc\r\n" +
-		"write batch2 4\r\ndefg\r\n" +
-		"read batch1\r\n"
-
-	cl.send(cmds)
-	m, err := cl.rcv()
-	expect(t, m, &Msg{Kind: 'O'}, "write batch1 success", err)
-	m, err = cl.rcv()
-	expect(t, m, &Msg{Kind: 'O'}, "write batch2 success", err)
-	m, err = cl.rcv()
-	expect(t, m, &Msg{Kind: 'C', Contents: []byte("abc")}, "read batch1", err)
+	killCluster()
+	endTest()
+	fmt.Println("Test End - TestRPC_Chunks")
 }
 */
 
 /*
 func TestRPC_BasicTimer(t *testing.T) {
-	cl := mkClient(t)
+	beginTest()
+	startCluster(0)
+
+	time.Sleep(time.Second*5)
+
+	cl := mkClient(t, "127.0.0.1:9001")
 	defer cl.close()
 
 	// Write file cs733, with expiry time of 2 seconds
@@ -324,19 +338,27 @@ func TestRPC_BasicTimer(t *testing.T) {
 	m, err = cl.read("cs733")
 	expect(t, m, &Msg{Kind: 'C'}, "file should not be deleted", err)
 
+	killCluster()
+	endTest()
+	fmt.Println("Test End - TestRPC_BasicTimer")
 }
 */
 
 // nclients write to the same file. At the end the file should be
 // any one clients' last write
 
-/*
+///*
 func TestRPC_ConcurrentWrites(t *testing.T) {
-	nclients := 500
-	niters := 10
+	beginTest()
+	startCluster(1)
+
+	time.Sleep(time.Second*5)
+
+	nclients := 5
+	niters := 5
 	clients := make([]*Client, nclients)
 	for i := 0; i < nclients; i++ {
-		cl := mkClient(t)
+		cl := mkClient(t, "127.0.0.1:9001")
 		if cl == nil {
 			t.Fatalf("Unable to create client #%d", i)
 		}
@@ -378,26 +400,36 @@ func TestRPC_ConcurrentWrites(t *testing.T) {
 		}
 	}
 	m, _ := clients[0].read("concWrite")
-	// Ensure the contents are of the form "cl <i> 9"
-	// The last write of any client ends with " 9"
-	if !(m.Kind == 'C' && strings.HasSuffix(string(m.Contents), " 9")) {
+	// Ensure the contents are of the form "cl <i> 4"
+	// The last write of any client ends with " 4"
+	if !(m.Kind == 'C' && strings.HasSuffix(string(m.Contents), " 4")) {
 		t.Fatalf("Expected to be able to read after 1000 writes. Got msg = %v", m)
 	}
+
+	killCluster()
+	endTest()
+	fmt.Println("Test End - TestRPC_ConcurrentWrites")
 }
-*/
+//*/
 
 // nclients cas to the same file. At the end the file should be any one clients' last write.
 // The only difference between this test and the ConcurrentWrite test above is that each
 // client loops around until each CAS succeeds. The number of concurrent clients has been
 // reduced to keep the testing time within limits.
-/*
+
+///*
 func TestRPC_ConcurrentCas(t *testing.T) {
-	nclients := 100
-	niters := 10
+	beginTest()
+	startCluster(1)
+
+	time.Sleep(time.Second*5)
+
+	nclients := 5
+	niters := 5
 
 	clients := make([]*Client, nclients)
 	for i := 0; i < nclients; i++ {
-		cl := mkClient(t)
+		cl := mkClient(t, "127.0.0.1:9001")
 		if cl == nil {
 			t.Fatalf("Unable to create client #%d", i)
 		}
@@ -451,11 +483,15 @@ func TestRPC_ConcurrentCas(t *testing.T) {
 	default: // no errors
 	}
 	m, _ = clients[0].read("concCas")
-	if !(m.Kind == 'C' && strings.HasSuffix(string(m.Contents), " 9")) {
+	if !(m.Kind == 'C' && strings.HasSuffix(string(m.Contents), " 4")) {
 		t.Fatalf("Expected to be able to read after 1000 writes. Got msg.Kind = %d, msg.Contents=%s", m.Kind, m.Contents)
 	}
+
+	killCluster()
+	endTest()
+	fmt.Println("Test End - TestRPC_ConcurrentCas")
 }
-*/
+//*/
 
 //----------------------------------------------------------------------
 // Utility functions
