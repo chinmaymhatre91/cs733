@@ -38,9 +38,10 @@ type Config struct {
 // -------------------- commit info structures --------------------
 
 type CommitInfo struct {
-	Data  []byte
-	Index int
-	Err   error
+	Data  	 []byte
+	Index 	 int
+	LeaderId int
+	Err   	 error
 }
 
 // -------------------- raft node structures --------------------
@@ -49,7 +50,7 @@ type Node interface {
 	Append([]byte) error
 	CommitChannel() (<-chan CommitInfo, error)
 	CommittedIndex() (int, error)
-	Get(index int) ([]byte, error)
+	Get(int) ([]byte, error)
 	Id() (int, error)
 	LeaderId() (int, error)
 	ChangeToMockServer(*mock.MockServer)
@@ -186,11 +187,14 @@ func New(conf Config) Node {
 	//rn.TimeoutEventCh = make(chan Event, 100)
 	rn.CommitCh = make(chan CommitInfo, 100)
 	RegisterStructs()
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.1")
 	ClustConfig := GetClusterConfig(conf)               // ?????
 	rn.NetServer, _ = cluster.New(conf.Id, ClustConfig) // ?????
 	rn.LogFile, _ = log.Open(conf.LogFileDir)
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.2")
 	rn.StateFile, _ = log.Open(conf.StateFileDir)
 
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.2")
 	// initilisation of state machine
 	rn.SM.Id = conf.Id
 	rn.SM.Conf = conf
@@ -198,6 +202,7 @@ func New(conf Config) Node {
 	rn.SM.NumOfVotes = 0
 	rn.SM.NumOfNegVotes = 0
 	rn.SM.LeaderId = -1
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.3")
 	// if rn.StateFile.GetLastIndex() != -1 {
 	// 	entry, err := rn.StateFile.Get(0)
 	// 	state_entry := entry.(StateEntry)
@@ -224,6 +229,7 @@ func New(conf Config) Node {
 	rn.SM.Log = append(rn.SM.Log, LogEntry{Term: 0, Data: nil})
 	rn.LogFile.Append(LogEntry{Term: 0, Data: nil})
 	//}
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.4")
 	rn.SM.CommitIndex = 0
 	rn.SM.LastApplied = 0
 	for _, _ = range conf.Cluster {
@@ -231,10 +237,13 @@ func New(conf Config) Node {
 		rn.SM.MatchIndex = append(rn.SM.MatchIndex, 0)
 	}
 
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.5")
 	//go rn.ProcessTimers()
 	go rn.ProcessNodeEvents()
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.6")
 
 	rn.TimeoutTimer.Reset(time.Millisecond * time.Duration(conf.ElectionTimeout))
+	//fmt.Println("["+strconv.Itoa(conf.Id)+"] 2.2.7")
 
 	return &rn
 }
@@ -264,7 +273,7 @@ func (RN *RaftNode) ProcessActions(actions []Action) {
 
 		case CommitAction:
 			commit_act := act.(CommitAction)
-			RN.CommitCh <- CommitInfo{Data: commit_act.Data, Index: commit_act.Index, Err: commit_act.Err}
+			RN.CommitCh <- CommitInfo{Data: commit_act.Data, Index: commit_act.Index, LeaderId: commit_act.LeaderId, Err: commit_act.Err}
 
 		case AlarmAction:
 			alarm_act := act.(AlarmAction)

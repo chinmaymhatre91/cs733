@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"time"
+	//"time"
 	//"sync"
 	//"bufio"
 	//"io"
@@ -29,10 +29,17 @@ func random(min int, max int) int {
 	return rand.Intn(max-min) + min
 }
 
-//-------------------- function to get minimum of two integers --------------------
+//-------------------- function to get minimum & maximum of two integers --------------------
 
 func min(val1 int, val2 int) int {
 	if val1 < val2 {
+		return val1
+	}
+	return val2
+}
+
+func max(val1 int, val2 int) int {
+	if val1 > val2 {
 		return val1
 	}
 	return val2
@@ -107,9 +114,10 @@ type SendAction struct {
 }
 
 type CommitAction struct {
-	Index int
-	Data  []byte
-	Err   error
+	Index 	 int
+	Data  	 []byte
+	LeaderId int
+	Err   	 error
 }
 
 type AlarmAction struct {
@@ -246,9 +254,12 @@ func (SM *StateMachine) ProcessLeaderEvent(ev Event) []Action {
 				act = append(act, send_act)
 			} else if SM.CurrTermLastLogIndex != -1 && SM.CurrTermLastLogIndex >= evnt.PrevLogIndex+len(evnt.Entries) {
 				if SM.CommitIndex < (len(SM.Log)-1) && SM.CommitIndex < evnt.LeaderCommitIndex {
+					prev_CommitIndex := SM.CommitIndex
 					SM.CommitIndex = min(evnt.LeaderCommitIndex, len(SM.Log)-1)
-					commit_act := CommitAction{Index: SM.CommitIndex, Data: SM.Log[SM.CommitIndex].Data, Err: nil}
-					act = append(act, commit_act)
+					for i:=prev_CommitIndex+1; i<=SM.CommitIndex; i++ {
+						commit_act := CommitAction{Index: i, Data: SM.Log[i].Data, LeaderId: SM.LeaderId, Err: nil}
+						act = append(act, commit_act)
+					}
 				}
 				appendEntriesResp_ev := AppendEntriesRespEvent{SenderId: SM.Id, Term: SM.CurrentTerm, LastLogIndex: len(SM.Log) - 1, Success: true}
 				send_act := SendAction{PeerId: evnt.SenderId, Ev: appendEntriesResp_ev}
@@ -273,9 +284,12 @@ func (SM *StateMachine) ProcessLeaderEvent(ev Event) []Action {
 				act = append(act, stateStore_act)
 
 				if SM.CommitIndex < (len(SM.Log)-1) && SM.CommitIndex < evnt.LeaderCommitIndex {
+					prev_CommitIndex := SM.CommitIndex
 					SM.CommitIndex = min(evnt.LeaderCommitIndex, len(SM.Log)-1)
-					commit_act := CommitAction{Index: SM.CommitIndex, Data: SM.Log[SM.CommitIndex].Data, Err: nil}
-					act = append(act, commit_act)
+					for i:=prev_CommitIndex+1; i<=SM.CommitIndex; i++ {
+						commit_act := CommitAction{Index: i, Data: SM.Log[i].Data, LeaderId: SM.LeaderId, Err: nil}
+						act = append(act, commit_act)
+					}
 				}
 
 				appendEntriesResp_ev := AppendEntriesRespEvent{SenderId: SM.Id, Term: SM.CurrentTerm, LastLogIndex: len(SM.Log) - 1, Success: true}
@@ -319,9 +333,12 @@ func (SM *StateMachine) ProcessLeaderEvent(ev Event) []Action {
 						}
 					}
 					if (cnt > len(SM.Conf.Cluster)/2) && (SM.Log[i].Term == SM.CurrentTerm) {
+						prev_CommitIndex := SM.CommitIndex
 						SM.CommitIndex = i
-						commit_act := CommitAction{Index: SM.CommitIndex, Data: SM.Log[SM.CommitIndex].Data, Err: nil}
-						act = append(act, commit_act)
+						for i:=prev_CommitIndex+1; i<=SM.CommitIndex; i++ {
+							commit_act := CommitAction{Index: i, Data: SM.Log[i].Data, LeaderId: SM.LeaderId, Err: nil}
+							act = append(act, commit_act)
+						}
 						break
 					}
 				}
@@ -422,7 +439,7 @@ func (SM *StateMachine) ProcessFollowerEvent(ev Event) []Action {
 	case AppendEvent:
 		evnt := ev.(AppendEvent)
 		event_name = "AppendEvent                  "
-		commit_act := CommitAction{Index: 0, Data: evnt.Data, Err: errors.New("ERR_CONTACT_LEADER")}
+		commit_act := CommitAction{Index: 0, Data: evnt.Data, LeaderId: SM.LeaderId, Err: errors.New("ERR_CONTACT_LEADER")}
 		act = append(act, commit_act)
 
 	case TimeoutEvent:
@@ -476,9 +493,12 @@ func (SM *StateMachine) ProcessFollowerEvent(ev Event) []Action {
 				act = append(act, send_act)
 			} else if SM.CurrTermLastLogIndex != -1 && SM.CurrTermLastLogIndex >= evnt.PrevLogIndex+len(evnt.Entries) {
 				if SM.CommitIndex < (len(SM.Log)-1) && SM.CommitIndex < evnt.LeaderCommitIndex {
+					prev_CommitIndex := SM.CommitIndex
 					SM.CommitIndex = min(evnt.LeaderCommitIndex, len(SM.Log)-1)
-					commit_act := CommitAction{Index: SM.CommitIndex, Data: SM.Log[SM.CommitIndex].Data, Err: nil}
-					act = append(act, commit_act)
+					for i:=prev_CommitIndex+1; i<=SM.CommitIndex; i++ {
+						commit_act := CommitAction{Index: i, Data: SM.Log[i].Data, LeaderId: SM.LeaderId, Err: nil}
+						act = append(act, commit_act)
+					}
 				}
 				appendEntriesResp_ev := AppendEntriesRespEvent{SenderId: SM.Id, Term: SM.CurrentTerm, LastLogIndex: len(SM.Log) - 1, Success: true}
 				send_act := SendAction{PeerId: evnt.SenderId, Ev: appendEntriesResp_ev}
@@ -503,9 +523,12 @@ func (SM *StateMachine) ProcessFollowerEvent(ev Event) []Action {
 				act = append(act, stateStore_act)
 
 				if SM.CommitIndex < (len(SM.Log)-1) && SM.CommitIndex < evnt.LeaderCommitIndex {
+					prev_CommitIndex := SM.CommitIndex
 					SM.CommitIndex = min(evnt.LeaderCommitIndex, len(SM.Log)-1)
-					commit_act := CommitAction{Index: SM.CommitIndex, Data: SM.Log[SM.CommitIndex].Data, Err: nil}
-					act = append(act, commit_act)
+					for i:=prev_CommitIndex+1; i<=SM.CommitIndex; i++ {
+						commit_act := CommitAction{Index: i, Data: SM.Log[i].Data, LeaderId: SM.LeaderId, Err: nil}
+						act = append(act, commit_act)
+					}
 				}
 
 				appendEntriesResp_ev := AppendEntriesRespEvent{SenderId: SM.Id, Term: SM.CurrentTerm, LastLogIndex: len(SM.Log) - 1, Success: true}
@@ -615,7 +638,7 @@ func (SM *StateMachine) ProcessCandidateEvent(ev Event) []Action {
 	case AppendEvent:
 		evnt := ev.(AppendEvent)
 		event_name = "AppendEvent                  "
-		commit_act := CommitAction{Index: 0, Data: evnt.Data, Err: errors.New("ERR_TRY_LATER")}
+		commit_act := CommitAction{Index: 0, Data: evnt.Data, LeaderId: SM.LeaderId, Err: errors.New("ERR_TRY_LATER")}
 		act = append(act, commit_act)
 
 	case TimeoutEvent:
@@ -670,9 +693,12 @@ func (SM *StateMachine) ProcessCandidateEvent(ev Event) []Action {
 				act = append(act, send_act)
 			} else if SM.CurrTermLastLogIndex != -1 && SM.CurrTermLastLogIndex >= evnt.PrevLogIndex+len(evnt.Entries) {
 				if SM.CommitIndex < (len(SM.Log)-1) && SM.CommitIndex < evnt.LeaderCommitIndex {
+					prev_CommitIndex := SM.CommitIndex
 					SM.CommitIndex = min(evnt.LeaderCommitIndex, len(SM.Log)-1)
-					commit_act := CommitAction{Index: SM.CommitIndex, Data: SM.Log[SM.CommitIndex].Data, Err: nil}
-					act = append(act, commit_act)
+					for i:=prev_CommitIndex+1; i<=SM.CommitIndex; i++ {
+						commit_act := CommitAction{Index: i, Data: SM.Log[i].Data, LeaderId: SM.LeaderId, Err: nil}
+						act = append(act, commit_act)
+					}
 				}
 				appendEntriesResp_ev := AppendEntriesRespEvent{SenderId: SM.Id, Term: SM.CurrentTerm, LastLogIndex: len(SM.Log) - 1, Success: true}
 				send_act := SendAction{PeerId: evnt.SenderId, Ev: appendEntriesResp_ev}
@@ -697,9 +723,12 @@ func (SM *StateMachine) ProcessCandidateEvent(ev Event) []Action {
 				act = append(act, stateStore_act)
 
 				if SM.CommitIndex < (len(SM.Log)-1) && SM.CommitIndex < evnt.LeaderCommitIndex {
+					prev_CommitIndex := SM.CommitIndex
 					SM.CommitIndex = min(evnt.LeaderCommitIndex, len(SM.Log)-1)
-					commit_act := CommitAction{Index: SM.CommitIndex, Data: SM.Log[SM.CommitIndex].Data, Err: nil}
-					act = append(act, commit_act)
+					for i:=prev_CommitIndex+1; i<=SM.CommitIndex; i++ {
+						commit_act := CommitAction{Index: i, Data: SM.Log[i].Data, LeaderId: SM.LeaderId, Err: nil}
+						act = append(act, commit_act)
+					}
 				}
 
 				appendEntriesResp_ev := AppendEntriesRespEvent{SenderId: SM.Id, Term: SM.CurrentTerm, LastLogIndex: len(SM.Log) - 1, Success: true}
@@ -845,8 +874,6 @@ func (SM *StateMachine) ProcessEvent(ev Event) []Action {
 
 // -------------------- main function --------------------
 
-func main() {
+/*func main() {
 	rand.Seed(time.Now().Unix())
-
-	fmt.Println("abc")
-}
+}*/
