@@ -120,7 +120,7 @@ func expect(t *testing.T, response *Msg, expected *Msg, errstr string, err error
 }
 
 
-/*
+///*
 func TestBasic(t *testing.T) {
 	beginTest()
 	startCluster()
@@ -142,7 +142,7 @@ func TestBasic(t *testing.T) {
 	endTest()
 	fmt.Println("Test End")
 }
-*/
+//*/
 
 ///*
 func TestRPC_BasicSequential(t *testing.T) {

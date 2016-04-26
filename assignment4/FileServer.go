@@ -302,7 +302,7 @@ func (FSR *FileServer) serverFile() {
 }
 
 func (FSR *FileServer) serverMain() {
-	clientId := 0
+	clientId := FSR.Id * 1000
 	tcpaddr, err := net.ResolveTCPAddr("tcp", FSR.Host+":"+strconv.Itoa(FSR.ClientPort))
 	check(err)
 	tcp_acceptor, err := net.ListenTCP("tcp", tcpaddr)
