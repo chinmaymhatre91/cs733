@@ -439,8 +439,13 @@ func (SM *StateMachine) ProcessFollowerEvent(ev Event) []Action {
 	case AppendEvent:
 		evnt := ev.(AppendEvent)
 		event_name = "AppendEvent                  "
-		commit_act := CommitAction{Index: 0, Data: evnt.Data, LeaderId: SM.LeaderId, Err: errors.New("ERR_CONTACT_LEADER")}
-		act = append(act, commit_act)
+		if SM.LeaderId != -1 {
+			commit_act := CommitAction{Index: 0, Data: evnt.Data, LeaderId: SM.LeaderId, Err: errors.New("ERR_CONTACT_LEADER")}
+			act = append(act, commit_act)
+		} else  {
+			commit_act := CommitAction{Index: 0, Data: evnt.Data, LeaderId: SM.LeaderId, Err: errors.New("ERR_TRY_LATER")}
+			act = append(act, commit_act)
+		}
 
 	case TimeoutEvent:
 		//evnt := ev.(TimeoutEvent)
